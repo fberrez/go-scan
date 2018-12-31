@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 
-	scan "github.com/fberrez/local-scan"
+	scan "github.com/fberrez/go-scan"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -18,7 +18,7 @@ func main() {
 		panic(err)
 	}
 
-	log.Info("local-scan uses nmap. You must have root access to use this command.")
+	log.Info("go-scan uses nmap. You must have root access to use this command.")
 	if err = scan.Scan(); err != nil {
 		panic(err)
 	}
