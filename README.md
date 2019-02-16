@@ -1,6 +1,6 @@
 # Go-scan
 
-Go-scan is a tool based on nmap, written in go. It executes a host discovery and returns a structured list of devices connected to a specified network.
+Go-scan is a host discovery written in go. It returns a structured list of devices connected to a specified network.
 
 ## Getting started
 ```sh
@@ -12,6 +12,12 @@ $ make
 
 # Read the doc
 $ ./go-scan --help
+
+# Scan a specific CIDR
+$ ./go-scan --cidr 72.5.1.1/24
+
+# Scan local network (192.168.1.1/24)
+$ ./go-scan
 ```
 
 ## How to use it
@@ -33,7 +39,12 @@ func main() {
     panic(err)
   }
 
-  fmt.Printf("%v", scan.Result)
+  results, err := json.Marshal(scan.Result)
+	if err != nil {
+		panic(err)
+	}
+
+  fmt.Printf("%s", results)
 }
 ```
 
@@ -42,13 +53,11 @@ func main() {
 [
  {
    "host": "192.168.1.1",
-   "name": "(box)"
-   "status": "Up"
+   "name": "box"
  },
  {
    "host": "192.168.1.10",
-   "name": "(device1)"
-   "status": "Up"
+   "name": "device1"
  },
  # ... other devices
 ]

@@ -3,96 +3,93 @@ package scan
 import (
 	"fmt"
 	"net"
-	"os/exec"
-	"strings"
 
 	"github.com/juju/errors"
 )
 
-// Scan is the structure containing the CIRD and the result
+// Scan is the structure containing the CIDR and the result
 type Scan struct {
-	CIRD   *net.IPNet `json:"CIRD"`
+	CIDR   *net.IPNet `json:"CIDR"`
 	Result []*Result  `json:"Result"`
 }
 
 // Result contains the structured output of the nmap command
 type Result struct {
-	Host   string `json:"host"`
-	Name   string `json:"name"`
-	Status string `json:"status"`
+	Host string `json:"host"`
+	Name string `json:"name"`
 }
 
 // New initiliazes a new Scan struct.
-// If the cird is not valid, it returns an error.
-func New(cird string) (*Scan, error) {
-	_, ipNet, err := net.ParseCIDR(cird)
+// If the cidr is not valid, it returns an error.
+func New(cidr string) (*Scan, error) {
+	_, ipNet, err := net.ParseCIDR(cidr)
 
 	if err != nil {
 		return nil, errors.NewNotValid(err, "")
 	}
 
 	return &Scan{
-		CIRD:   ipNet,
+		CIDR:   ipNet,
 		Result: []*Result{},
 	}, nil
 }
 
-// Scan executes the algorithm which scans the given CIRD.
+// Scan executes the algorithm which scans the given CIDR.
 // It updates the result field contained in the Scan struct.
 func (s *Scan) Scan() error {
-	command := fmt.Sprintf("sudo nmap -sn -oG - %v", s.CIRD)
-	output, err := exec.Command("/bin/sh", "-c", command).Output()
-
+	address, err := s.getHosts()
 	if err != nil {
 		return err
 	}
 
-	lines := strings.Split(string(output), "\n")
-	results, err := parseOutput(lines)
-
-	if err != nil {
-		return err
-	}
-
-	s.Result = results
-
-	return nil
-}
-
-func parseOutput(lines []string) ([]*Result, error) {
 	results := []*Result{}
-
-	// The counter starts on on the second line (1): the first line
-	// does not have any usefull information.
-	// The last line is only a resume of all informations.
-	for i := 1; i < len(lines)-2; i++ {
-		// Example of a line : `Host: 192.168.1.1 (livebox.home)\t  Status: Up\n`
-		// A line contains 2 fields. They are separated by a \t.
-		line := lines[i]
-		fields := strings.Split(line, "\t")
-		hostField := fields[0]
-		statusField := fields[1]
-
-		host := strings.Split(hostField, " ")[1]
-		name := strings.Split(hostField, " ")[2]
-		status := strings.Split(statusField, " ")[1]
+	for _, a := range address {
+		host, err := net.LookupAddr(a)
+		// If an error occurs, it assumes that the address is not used
+		// in the given CIDR.
+		if err != nil {
+			continue
+		}
 
 		result := &Result{
-			Host:   host,
-			Name:   name,
-			Status: status,
+			Host: a,
+			Name: host[0],
 		}
 
 		results = append(results, result)
 	}
 
-	if len(results) == 0 {
-		return results, errors.New(fmt.Sprintf("output cannot be parsed: %s", lines))
+	s.Result = results
+	return nil
+}
+
+// getHosts returns a slice containing all addresses from a given CIDR.
+func (s *Scan) getHosts() ([]string, error) {
+	ip, ipnet, err := net.ParseCIDR(s.CIDR.String())
+	if err != nil {
+		return nil, err
 	}
 
-	return results, nil
+	var ips []string
+	for ipAddr := ip.Mask(ipnet.Mask); ipnet.Contains(ipAddr); inc(ipAddr) {
+		ips = append(ips, ipAddr.String())
+	}
+
+	// remove network address and broadcast address
+	return ips[1 : len(ips)-1], nil
+}
+
+// inc increments the given IP address.
+// http://play.golang.org/p/m8TNTtygK0
+func inc(ip net.IP) {
+	for j := len(ip) - 1; j >= 0; j-- {
+		ip[j]++
+		if ip[j] > 0 {
+			break
+		}
+	}
 }
 
 func (r *Result) String() string {
-	return fmt.Sprintf("host: %s - name: %s - status: %s\n", r.Host, r.Name, r.Status)
+	return fmt.Sprintf("host: %s - name: %s\n", r.Host, r.Name)
 }
