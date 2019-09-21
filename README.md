@@ -1,5 +1,7 @@
 # Go-scan
 
+![go-scan illustration](.github/go-scan.png "Go-scan")
+
 Go-scan is a host discovery written in go. It returns a structured list of devices connected to a specified network.
 
 ## Getting started
